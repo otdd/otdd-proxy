@@ -168,7 +168,11 @@ namespace OtddRedirector {
           },&response_headers);
            //HeaderUtility::addHeaders(response_headers,headers);
         },
-        absl::nullopt, "otdd_redirected_response");
+        absl::nullopt 
+#if ISTIO_VERSION == 1.2 || ISTIO_VERSION == 1.3 || ISTIO_VERSION == 1.4
+	,"otdd_redirected_response"
+#endif
+	);
       return;
     }
 

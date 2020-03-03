@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package otdd.config;
+
+message OtddRedirectorConfig {
+	string target_cluster = 1;
+	uint64 interval = 2;
+}

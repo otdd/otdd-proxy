@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package otddrecorder.config;
+
+message OtddRecorderConfig {
+	bool is_inbound = 1;
+	string module_name = 2;
+	string protocol = 3;
+	string report_cluster = 4;
+}

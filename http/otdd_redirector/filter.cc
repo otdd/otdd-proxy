@@ -23,6 +23,9 @@
 #include "common/common/stack_array.h"
 #include "common/common/enum_to_int.h"
 
+#define MAJOR_ISTIO_VERSION 1
+#define MINOR_ISTIO_VERSION 2
+
 using ::google::protobuf::util::Status;
 
 namespace Envoy {
@@ -169,7 +172,7 @@ namespace OtddRedirector {
            //HeaderUtility::addHeaders(response_headers,headers);
         },
         absl::nullopt 
-#if ISTIO_VERSION == 1.2 || ISTIO_VERSION == 1.3 || ISTIO_VERSION == 1.4
+#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 ))
 	,"otdd_redirected_response"
 #endif
 	);

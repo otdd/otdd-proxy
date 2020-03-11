@@ -28,7 +28,7 @@ class OtddRecorderFilterFactory : public NamedNetworkFilterConfigFactory ,
 			public Logger::Loggable<Logger::Id::filter>{
  public:
   Network::FilterFactoryCb createFilterFactory(
-      const Json::Object& config_json, FactoryContext& context ) override {
+      const Json::Object& config_json, FactoryContext& context ) {
     OtddRecorderConfig config_pb;
     config_pb.set_is_inbound(config_json.getBoolean("is_inbound"));
     config_pb.set_module_name(config_json.getString("module_name"));
@@ -55,7 +55,12 @@ class OtddRecorderFilterFactory : public NamedNetworkFilterConfigFactory ,
     return ProtobufTypes::MessagePtr{new OtddRecorderConfig};
   }
 
-  std::string name() override { return "otdd.recorder"; }
+  std::string name()
+  #if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 ))
+  #else
+  const
+  #endif
+  override { return "otdd.recorder"; }
 
  private:
   Network::FilterFactoryCb createFilterFactory(FactoryContext& context, const OtddRecorderConfig config_pb) {

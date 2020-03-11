@@ -15,6 +15,7 @@
 
 #pragma once
 
+#include "src/envoy/tcp/otdd_recorder/istio_version.h"
 #include "common/common/logger.h"
 #include "envoy/network/connection.h"
 #include "envoy/network/filter.h"

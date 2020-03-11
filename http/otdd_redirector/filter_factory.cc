@@ -30,7 +30,7 @@ class OtddRedirectorConfigFactory : public NamedHttpFilterConfigFactory {
  public:
   Http::FilterFactoryCb createFilterFactory(const Json::Object& config_json,
                                             const std::string& prefix,
-                                            FactoryContext& context) override {
+                                            FactoryContext& context) {
     OtddRedirectorConfig config_pb;
     config_pb.set_target_cluster(config_json.getString("target_cluster"));
     config_pb.set_interval(config_json.getInteger("interval"));
@@ -51,7 +51,12 @@ class OtddRedirectorConfigFactory : public NamedHttpFilterConfigFactory {
     return ProtobufTypes::MessagePtr{new OtddRedirectorConfig};
   }
 
-  std::string name() override { return "otdd.redirector"; }
+  std::string name() 
+  #if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+  #else
+  const 
+  #endif
+  override { return "otdd.redirector"; }
 
  private:
   Http::FilterFactoryCb createFilterFactory(const OtddRedirectorConfig config_pb,

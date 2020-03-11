@@ -23,9 +23,6 @@
 #include "common/common/stack_array.h"
 #include "common/common/enum_to_int.h"
 
-#define MAJOR_ISTIO_VERSION 1
-#define MINOR_ISTIO_VERSION 2
-
 using ::google::protobuf::util::Status;
 
 namespace Envoy {
@@ -135,7 +132,11 @@ namespace OtddRedirector {
       Http::MessagePtr request(new Http::RequestMessageImpl(Http::HeaderMapPtr{new Http::HeaderMapImpl(*headers_)}));
       if(body_.length()>0){
           request->body() = std::make_unique<Buffer::OwnedImpl>(body_);
+	  #if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 ))
           request->headers().insertContentLength().value(body_.length());
+	  #else
+          request->headers().setContentLength(body_.length());
+	  #endif
       }
 
       //the upstream timeout will not be treated as an failure and will crash proxy in current async client implementation. so just set this timeout to a very big value.
@@ -172,7 +173,7 @@ namespace OtddRedirector {
            //HeaderUtility::addHeaders(response_headers,headers);
         },
         absl::nullopt 
-#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 ))
+#if ( MAJOR_ISTIO_VERSION == 1 && MINOR_ISTIO_VERSION != 1 )
 	,"otdd_redirected_response"
 #endif
 	);

@@ -28,6 +28,7 @@ envoy_cc_library(
         "config.h",
         "filter.cc",
         "filter.h",
+        "istio_version.h",
         "otdd_test_case.h",
         "filter_factory.cc",
     ],

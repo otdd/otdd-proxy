@@ -14,7 +14,7 @@
  */
 
 #pragma once
-
+#include "src/envoy/http/otdd_redirector/istio_version.h"
 #include "common/common/logger.h"
 #include "envoy/http/filter.h"
 #include "envoy/server/filter_config.h"

@@ -27,6 +27,7 @@ envoy_cc_library(
     srcs = [
         "filter.cc",
         "filter.h",
+        "istio_version.h",
         "filter_factory.cc",
     ],
     repository = "@envoy",

@@ -55,7 +55,13 @@ class Filter : public Network::Filter,
   void onBelowWriteBufferLowWatermark() override {}
 
  private:
+  bool reportTestCase(std::shared_ptr<OtddTestCase> otdd_test);
+  #if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
   bool reportToMixer(std::shared_ptr<OtddTestCase> otdd_test);
+  #else
+  bool reportDirectlyToOtddServer(std::shared_ptr<OtddTestCase> otdd_test);
+  #endif
+
   std::string convertTestCallToJson(std::shared_ptr<OtddCall> otdd_call);
 
   // filter callback

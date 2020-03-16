@@ -62,7 +62,7 @@ Network::FilterStatus Filter::onData(Buffer::Instance &data, bool) {
     // report last recorded otdd test.
     if(config_.is_inbound()){
       if(_s_current_otdd_testcase_ptr!=NULL){
-        reportToMixer(_s_current_otdd_testcase_ptr);
+        reportTestCase(_s_current_otdd_testcase_ptr);
       }
       _s_current_otdd_testcase_ptr = std::make_shared<OtddTestCase>();
     }
@@ -113,6 +113,21 @@ Network::FilterStatus Filter::onNewConnection() {
 void Filter::onEvent(Network::ConnectionEvent ) {
 }
 
+bool Filter::reportTestCase(std::shared_ptr<OtddTestCase> otdd_test){
+#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+  return reportToMixer(otdd_test);
+#else
+  return reportDirectlyToOtddServer(otdd_test);
+#endif
+}
+
+#if ( MAJOR_ISTIO_VERSION == 1 && !( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+bool Filter::reportDirectlyToOtddServer(std::shared_ptr<OtddTestCase> otdd_test){
+  return true;
+}
+#endif
+
+#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
 bool Filter::reportToMixer(std::shared_ptr<OtddTestCase> otdd_test){
   if(otdd_test==NULL){
     return false;
@@ -173,6 +188,7 @@ bool Filter::reportToMixer(std::shared_ptr<OtddTestCase> otdd_test){
 
   return true;
 }
+#endif
 
 std::string Filter::convertTestCallToJson(std::shared_ptr<OtddCall> otdd_call){
   if(otdd_call==NULL){

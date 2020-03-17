@@ -22,6 +22,7 @@ load(
 
 load("@com_google_protobuf//:protobuf.bzl", "cc_proto_library")
 
+
 envoy_cc_library(
     name = "filter_lib",
     srcs = [
@@ -39,6 +40,9 @@ envoy_cc_library(
         "//src/istio/utils:utils_lib",
         "@envoy//source/exe:envoy_common_lib",
         ":otdd_recorder_config_cc_proto",
+        ":otddserver_cc_grpc",
+        #":otddserver_cc_proto",
+	"@com_github_grpc_grpc//:grpc++",
     ],
 )
 
@@ -50,4 +54,13 @@ cc_proto_library(
     default_runtime = "//external:protobuf",
     protoc = "//external:protoc",
     visibility = ["//visibility:public"]
+)
+
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+
+cc_grpc_library(
+    name = "otddserver_cc_grpc",
+    srcs = ["otddserver.proto"],
+    grpc_only = False,
+    deps = [],
 )

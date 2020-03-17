@@ -23,6 +23,13 @@
 #include "src/istio/mixerclient/status_util.h"
 #include "common/common/base64.h"
 #include <ctime>
+#include "src/envoy/tcp/otdd_recorder/otddserver.pb.h"
+#include "src/envoy/tcp/otdd_recorder/otddserver.grpc.pb.h"
+#include <grpc/grpc.h>
+#include <grpcpp/channel.h>
+#include <grpcpp/client_context.h>
+#include <grpcpp/create_channel.h>
+#include <grpcpp/security/credentials.h>
 
 using ::google::protobuf::util::Status;
 using ::istio::mixerclient::CheckResponseInfo;
@@ -37,11 +44,28 @@ namespace OtddRecorder {
 
 static std::shared_ptr<OtddTestCase> _s_current_otdd_testcase_ptr = NULL;
 
+#if ( MAJOR_ISTIO_VERSION == 1 && !( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+static std::shared_ptr< ::grpc::ChannelInterface> _s_channel = NULL;
+static std::unique_ptr<otddserver::OtddServerService::Stub> _s_stub = NULL;
+#endif
+
 Filter::Filter(OtddRecorderConfig conf,Server::Configuration::FactoryContext& context):
   context_(context) {
   config_ = conf;
   otdd_call_ptr_ = NULL;
   write_occured_ = false;
+  if(_s_channel==NULL){
+    ENVOY_LOG(info,"creating grpc channel");
+    _s_channel = ::grpc::CreateChannel("otdd-server.otdd-system.svc.cluster.local:8764", grpc::InsecureChannelCredentials());
+  }
+  if(_s_channel!=NULL){
+    ENVOY_LOG(info,"grpc channel created");
+    _s_stub = otddserver::OtddServerService::NewStub(_s_channel);
+    ENVOY_LOG(info,"stub created");
+  }
+  else {
+    ENVOY_LOG(info,"channel is null");
+  }
 }
 
 Filter::~Filter() {
@@ -80,7 +104,7 @@ Network::FilterStatus Filter::onData(Buffer::Instance &data, bool) {
   }
   otdd_call_ptr_->req_bytes_.append(data.toString());
 
-  ENVOY_LOG(debug,"in tcp filter onRead, content: {}, len: {} is_inbound:{} conn remote:{} local:{}",  data.toString(),data.toString().length(),config_.is_inbound(),
+  ENVOY_LOG(info,"in tcp filter onRead, content: {}, len: {} is_inbound:{} conn remote:{} local:{}",  data.toString(),data.toString().length(),config_.is_inbound(),
                  filter_callbacks_->connection().remoteAddress()->asString(),filter_callbacks_->connection().localAddress()->asString());
   return Network::FilterStatus::Continue;
 }
@@ -89,7 +113,7 @@ Network::FilterStatus Filter::onData(Buffer::Instance &data, bool) {
 Network::FilterStatus Filter::onWrite(Buffer::Instance &data, bool) {
   write_occured_ = true;
   if(otdd_call_ptr_==NULL){
-    ENVOY_LOG(debug,"it's a greeting msg.");
+    ENVOY_LOG(info,"it's a greeting msg.");
     otdd_call_ptr_ = std::make_shared<OtddCall>();
     _s_current_otdd_testcase_ptr->outbound_calls_.push_back(otdd_call_ptr_);
   }
@@ -99,7 +123,7 @@ Network::FilterStatus Filter::onWrite(Buffer::Instance &data, bool) {
     otdd_call_ptr_->resp_timestamp_ = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
   }
   otdd_call_ptr_->resp_bytes_.append(data.toString());
-  ENVOY_LOG(debug,"in tcp filter onWrite, content: {}, len: {} conn remote:{} local:{}",data.toString(),data.toString().length(),
+  ENVOY_LOG(info,"in tcp filter onWrite, content: {}, len: {} conn remote:{} local:{}",data.toString(),data.toString().length(),
                  filter_callbacks_->connection().remoteAddress()->asString(),filter_callbacks_->connection().localAddress()->asString());
   return Network::FilterStatus::Continue;
 }
@@ -114,26 +138,12 @@ void Filter::onEvent(Network::ConnectionEvent ) {
 }
 
 bool Filter::reportTestCase(std::shared_ptr<OtddTestCase> otdd_test){
-#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
-  return reportToMixer(otdd_test);
-#else
-  return reportDirectlyToOtddServer(otdd_test);
-#endif
-}
-
-#if ( MAJOR_ISTIO_VERSION == 1 && !( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
-bool Filter::reportDirectlyToOtddServer(std::shared_ptr<OtddTestCase> otdd_test){
-  return true;
-}
-#endif
-
-#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
-bool Filter::reportToMixer(std::shared_ptr<OtddTestCase> otdd_test){
   if(otdd_test==NULL){
+    ENVOY_LOG(error,"test case is null when report test case.");
     return false;
   }
   std::string testCase;
-  ENVOY_LOG(debug,"--- complete otdd test case ---");
+  ENVOY_LOG(info,"--- complete otdd test case ---");
   testCase.append("{");
   testCase.append("\"module\":\"");
   testCase.append(config_.module_name());
@@ -142,13 +152,13 @@ bool Filter::reportToMixer(std::shared_ptr<OtddTestCase> otdd_test){
   testCase.append(config_.protocol());
   testCase.append("\",");
   if(otdd_test->inbound_call_!=NULL){
-    ENVOY_LOG(debug,"-- inbound call -- \n -- req -- \n {} \n -- resp --\n {} ", otdd_test->inbound_call_->req_bytes_,otdd_test->inbound_call_->resp_bytes_);
+    ENVOY_LOG(info,"-- inbound call -- \n -- req -- \n {} \n -- resp --\n {} ", otdd_test->inbound_call_->req_bytes_,otdd_test->inbound_call_->resp_bytes_);
     testCase.append("\"inbound\":"+convertTestCallToJson(otdd_test->inbound_call_)+",");
   }
   testCase.append("\"outbound\":[");
   int tmp=0;
   for(auto const& outbound_call : otdd_test->outbound_calls_) {
-    ENVOY_LOG(debug,"-- outbound call -- \n -- req -- {} \n -- resp --\n {} ", outbound_call->req_bytes_,outbound_call->resp_bytes_);
+    ENVOY_LOG(info,"-- outbound call -- \n -- req -- {} \n -- resp --\n {} ", outbound_call->req_bytes_,outbound_call->resp_bytes_);
     if(tmp!=0){
       testCase.append(",");
     }
@@ -157,6 +167,39 @@ bool Filter::reportToMixer(std::shared_ptr<OtddTestCase> otdd_test){
   }
   testCase.append("]");
   testCase.append("}");
+#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+  return reportToMixer(testCase);
+#else
+  return reportDirectlyToOtddServer(testCase);
+#endif
+}
+
+#if ( MAJOR_ISTIO_VERSION == 1 && !( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+bool Filter::reportDirectlyToOtddServer(std::string& testCase){
+  ENVOY_LOG(info,"report otdd test case to otdd server: " + testCase);
+  // Connection timeout in seconds
+  unsigned int client_connection_timeout = 5;
+  // Set timeout for API
+  std::chrono::system_clock::time_point deadline =
+  std::chrono::system_clock::now() + std::chrono::seconds(client_connection_timeout);
+  ::grpc::ClientContext context;
+  context.set_deadline(deadline);
+
+  otddserver::SaveTestCaseReq req;
+  req.set_testcase(testCase);
+  otddserver::SaveTestCaseResp resp;
+  ::grpc::Status status = _s_stub->SaveTestCase(&context,req,&resp);
+  if (status.ok()) {
+    ENVOY_LOG(info,"report to otdd server succeed!");
+  } else {
+    ENVOY_LOG(error,"report to otdd server failed!");
+  }
+  return true;
+}
+#endif
+
+#if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
+bool Filter::reportToMixer(std::string& testCase){
 
   Grpc::AsyncClientFactoryPtr report_client_factory = Utils::GrpcClientFactoryForCluster(config_.report_cluster(), context_.clusterManager(), context_.scope(), context_.dispatcher().timeSource());
   auto reportTransport = Envoy::Utils::ReportTransport::GetFunc( *report_client_factory, Tracing::NullSpan::instance(), "");
@@ -175,13 +218,13 @@ bool Filter::reportToMixer(std::shared_ptr<OtddTestCase> otdd_test){
         ENVOY_LOG(info,"report otdd test case to mixer: success ");
         break;
       case TransportResult::RESPONSE_TIMEOUT:
-        ENVOY_LOG(info,"report otdd test case to mixer: timeout");
+        ENVOY_LOG(error,"report otdd test case to mixer: timeout");
         break;
       case TransportResult::SEND_ERROR:
-        ENVOY_LOG(info,"report otdd test case to mixer: send error");
+        ENVOY_LOG(error,"report otdd test case to mixer: send error");
         break;
       case TransportResult::OTHER:
-        ENVOY_LOG(info,"report otdd test case to mixer: other error");
+        ENVOY_LOG(error,"report otdd test case to mixer: other error");
         break;
     }
   });

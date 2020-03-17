@@ -57,9 +57,9 @@ class Filter : public Network::Filter,
  private:
   bool reportTestCase(std::shared_ptr<OtddTestCase> otdd_test);
   #if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
-  bool reportToMixer(std::shared_ptr<OtddTestCase> otdd_test);
+  bool reportToMixer(std::string& testCase);
   #else
-  bool reportDirectlyToOtddServer(std::shared_ptr<OtddTestCase> otdd_test);
+  bool reportDirectlyToOtddServer(std::string& testCase);
   #endif
 
   std::string convertTestCallToJson(std::shared_ptr<OtddCall> otdd_call);

@@ -206,7 +206,13 @@ bool Filter::reportDirectlyToOtddServer(std::string& testCase){
 #if ( MAJOR_ISTIO_VERSION == 1 && ( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
 bool Filter::reportToMixer(std::string& testCase){
 
-  Grpc::AsyncClientFactoryPtr report_client_factory = Utils::GrpcClientFactoryForCluster(config_.report_cluster(), context_.clusterManager(), context_.scope(), context_.dispatcher().timeSource());
+  Grpc::AsyncClientFactoryPtr report_client_factory = Utils::GrpcClientFactoryForCluster(config_.report_cluster(), context_.clusterManager(), context_.scope(), 
+		  #if ( MAJOR_ISTIO_VERSION == 1 && MINOR_ISTIO_VERSION == 1 && ( PATCH_ISTIO_VERSION == 0 || PATCH_ISTIO_VERSION == 1 || PATCH_ISTIO_VERSION == 2 ))
+		  context_.dispatcher().timeSystem()
+		  #else
+		  context_.dispatcher().timeSource()
+		  #endif
+		  );
   auto reportTransport = Envoy::Utils::ReportTransport::GetFunc( *report_client_factory, Tracing::NullSpan::instance(), "");
   ::istio::mixer::v1::ReportRequest reportRequest;
 

@@ -41,7 +41,6 @@ envoy_cc_library(
         "@envoy//source/exe:envoy_common_lib",
         ":otdd_recorder_config_cc_proto",
         ":otddserver_cc_grpc",
-        #":otddserver_cc_proto",
 	"@com_github_grpc_grpc//:grpc++",
     ],
 )

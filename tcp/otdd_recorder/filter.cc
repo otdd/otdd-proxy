@@ -23,13 +23,16 @@
 #include "src/istio/mixerclient/status_util.h"
 #include "common/common/base64.h"
 #include <ctime>
-#include "src/envoy/tcp/otdd_recorder/otddserver.pb.h"
-#include "src/envoy/tcp/otdd_recorder/otddserver.grpc.pb.h"
+
+#if ( MAJOR_ISTIO_VERSION == 1 && !( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
 #include <grpc/grpc.h>
 #include <grpcpp/channel.h>
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
+#include "src/envoy/tcp/otdd_recorder/otddserver.pb.h"
+#include "src/envoy/tcp/otdd_recorder/otddserver.grpc.pb.h"
+#endif
 
 using ::google::protobuf::util::Status;
 using ::istio::mixerclient::CheckResponseInfo;
@@ -54,6 +57,7 @@ Filter::Filter(OtddRecorderConfig conf,Server::Configuration::FactoryContext& co
   config_ = conf;
   otdd_call_ptr_ = NULL;
   write_occured_ = false;
+#if ( MAJOR_ISTIO_VERSION == 1 && !( MINOR_ISTIO_VERSION == 1 || MINOR_ISTIO_VERSION == 2 || MINOR_ISTIO_VERSION == 3 || MINOR_ISTIO_VERSION == 4 )) 
   if(_s_channel==NULL){
     ENVOY_LOG(info,"creating grpc channel");
     _s_channel = ::grpc::CreateChannel("otdd-server.otdd-system.svc.cluster.local:8764", grpc::InsecureChannelCredentials());
@@ -66,6 +70,7 @@ Filter::Filter(OtddRecorderConfig conf,Server::Configuration::FactoryContext& co
   else {
     ENVOY_LOG(info,"channel is null");
   }
+#endif
 }
 
 Filter::~Filter() {
